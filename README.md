@@ -100,3 +100,10 @@ running tests against another database.
 This starter intentionally does not include Docker, Kubernetes, CI, external
 brokers, an LLM, or a PostgreSQL implementation. Those are deployment and
 student-port concerns rather than part of the local relay protocol.
+
+## Claude Code development record
+
+The Homework 3 Claude Code session record, maintained as described in `AGENTS.md`:
+
+- [Claude Code prompts](_docs/claude-code-prompts.md): exact user prompts
+- [Claude Code conversation](_docs/claude-code-conversation.md): sanitized dialogue and tool activity
