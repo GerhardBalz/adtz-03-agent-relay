@@ -1,0 +1,187 @@
+# Homework 3 Question 6: test against PostgreSQL, then build a uniquely tagged
+# image and roll it out to the local kind cluster. Designed to run with act:
+#
+#   act push -P ubuntu-latest=catthehacker/ubuntu:act-latest \
+#     --container-daemon-socket /var/run/docker.sock
+#
+# (From Git Bash on Windows, prefix MSYS_NO_PATHCONV=1 so the socket path is
+# not rewritten.) Hosted GitHub Actions runs only the tests; the deploy job
+# runs only under act, and only after the tests pass.
+#
+# The deploy job needs the host's Docker daemon (to build and `kind load`) and
+# an existing kind cluster named `kind` with the k8s/ manifests and the
+# `postgres-credentials` Secret already in place (see k8s/README.md).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+defaults:
+  run:
+    # Container jobs otherwise default to sh.
+    shell: bash
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    # A container job, so the service below resolves by its name `postgres`
+    # (under act and on GitHub) without publishing a host port.
+    container: catthehacker/ubuntu:act-latest
+    services:
+      # Disposable test server: exists only for this job, publishes no host
+      # port, and is reachable from the job container as `postgres`.
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: relay
+          POSTGRES_PASSWORD: relay
+          POSTGRES_DB: agent_relay_test
+        options: >-
+          --health-cmd "pg_isready -U relay -d agent_relay_test"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 30
+    env:
+      # The protocol tests drop and recreate tables here (the name must end in
+      # `_test`); the integration test creates and drops its own database on
+      # the same server. Neither reads RELAY_DATABASE_URL.
+      RELAY_TEST_DATABASE_URL: postgresql+psycopg://relay:relay@postgres:5432/agent_relay_test
+      # Empty: the integration test starts its own server instead of
+      # targeting an already running relay.
+      RELAY_TEST_API_URL: ""
+      RELAY_TEST_API_DATABASE_URL: ""
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Wait for the test database
+        run: |
+          uv run --frozen python - <<'EOF'
+          import os, time
+          import psycopg
+          from sqlalchemy.engine import make_url
+          url = make_url(os.environ["RELAY_TEST_DATABASE_URL"])
+          assert url.host == "postgres" and url.database == "agent_relay_test", url
+          for _ in range(60):
+              try:
+                  psycopg.connect(host=url.host, port=url.port, user=url.username,
+                                  password=url.password, dbname=url.database).close()
+                  break
+              except psycopg.OperationalError:
+                  time.sleep(1)
+          else:
+              raise SystemExit("test database did not become ready")
+          print(f"test database ready: {url.host}:{url.port}/{url.database}")
+          EOF
+
+      - name: Run starter tests and API integration test
+        run: uv run --frozen pytest -v test_agent_relay.py test_api_integration.py
+
+  deploy:
+    needs: test
+    # Local act runs only: hosted runners have no access to the local kind
+    # cluster. act reports the actor `nektos/act` (a job-level `if` cannot read
+    # act's ACT env var); needs: test keeps it behind passing tests.
+    if: >-
+      github.actor == 'nektos/act' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    container: catthehacker/ubuntu:act-latest
+    env:
+      KIND_CLUSTER: kind
+      KIND_VERSION: v0.33.0
+      KUBECTL_VERSION: v1.36.1
+      ROLLOUT_TIMEOUT: 180s
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install kind and kubectl
+        run: |
+          test "${ACT:-}" = true || { echo "::error::deploy runs only under act"; exit 1; }
+          mkdir -p "$HOME/bin"
+          curl -fsSLo "$HOME/bin/kind" "https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-amd64"
+          curl -fsSLo "$HOME/bin/kubectl" "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
+          chmod +x "$HOME/bin/kind" "$HOME/bin/kubectl"
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+
+      - name: Connect to Docker and the kind cluster
+        run: |
+          docker version --format 'Docker server {{.Server.Version}}'
+          kind get clusters | grep -qx "$KIND_CLUSTER" \
+            || { echo "::error::kind cluster '$KIND_CLUSTER' not found"; exit 1; }
+          node="${KIND_CLUSTER}-control-plane"
+          kind get kubeconfig --internal --name "$KIND_CLUSTER" > "$RUNNER_TEMP/kubeconfig"
+          if docker inspect "$(hostname)" >/dev/null 2>&1; then
+            # Own container: join the kind network so the internal address
+            # (https://<node>:6443) resolves.
+            docker network connect kind "$(hostname)" 2>/dev/null || true
+          else
+            # act without services runs the job on the Docker host's network,
+            # where kind's bridge IPs are routable; the apiserver certificate
+            # covers the node IP.
+            ip=$(docker inspect -f '{{(index .NetworkSettings.Networks "kind").IPAddress}}' "$node")
+            sed -i "s|https://${node}:6443|https://${ip}:6443|" "$RUNNER_TEMP/kubeconfig"
+          fi
+          echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> "$GITHUB_ENV"
+          KUBECONFIG="$RUNNER_TEMP/kubeconfig" kubectl get nodes
+
+      - name: Check the existing deployment
+        run: |
+          kubectl get secret postgres-credentials -o name
+          kubectl rollout status statefulset/postgres --timeout=60s
+          echo "Current image: $(kubectl get deployment agent-relay -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null || echo none)"
+
+      - name: Build a uniquely tagged image
+        run: |
+          TAG="ci-${GITHUB_SHA::12}-$(date -u +%Y%m%d%H%M%S)"
+          IMAGE="agent-relay:${TAG}"
+          if docker image inspect "$IMAGE" >/dev/null 2>&1; then
+            echo "::error::$IMAGE already exists"; exit 1
+          fi
+          docker build --label "org.opencontainers.image.revision=${GITHUB_SHA}" -t "$IMAGE" .
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+          echo "Built $IMAGE"
+
+      - name: Load the image into kind
+        run: kind load docker-image "$IMAGE" --name "$KIND_CLUSTER"
+
+      - name: Deploy and wait for the rollout
+        run: |
+          # Only the app image changes; PostgreSQL and its volume are untouched.
+          sed "s|image: agent-relay:local|image: ${IMAGE}|" k8s/agent-relay.yaml | kubectl apply -f -
+          kubectl annotate deployment/agent-relay --overwrite \
+            kubernetes.io/change-cause="CI deploy ${IMAGE}"
+          if ! kubectl rollout status deployment/agent-relay --timeout="$ROLLOUT_TIMEOUT"; then
+            echo "::error::rollout of $IMAGE did not finish; restoring the previous revision"
+            kubectl rollout undo deployment/agent-relay
+            kubectl rollout status deployment/agent-relay --timeout="$ROLLOUT_TIMEOUT"
+            exit 1
+          fi
+
+      - name: Verify the rollout
+        run: |
+          deployed=$(kubectl get deployment agent-relay -o jsonpath='{.spec.template.spec.containers[0].image}')
+          test "$deployed" = "$IMAGE" || { echo "::error::deployment runs $deployed, expected $IMAGE"; exit 1; }
+          ready=$(kubectl get deployment agent-relay -o jsonpath='{.status.readyReplicas}/{.spec.replicas}')
+          echo "Ready replicas: $ready"
+          test "${ready%/*}" = "${ready#*/}" || { echo "::error::only $ready replicas ready"; exit 1; }
+          # Old pods may still be terminating (phase Running); skip those.
+          running=$(kubectl get pods -l app.kubernetes.io/name=agent-relay --field-selector=status.phase=Running \
+            -o go-template='{{range .items}}{{if not .metadata.deletionTimestamp}}{{(index .spec.containers 0).image}}{{"\n"}}{{end}}{{end}}' | sort -u)
+          test "$running" = "$IMAGE" || { echo "::error::serving pods use: $running"; exit 1; }
+          kubectl exec deployment/agent-relay -- python -c \
+            "import urllib.request; r = urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=5); print('GET /ready', r.status)"
+          kubectl get deployment,pods -l app.kubernetes.io/name=agent-relay -o wide
+          kubectl rollout history deployment/agent-relay
+          echo "Deployed $IMAGE" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Leave the kind network
+        if: always()
+        run: docker network disconnect kind "$(hostname)" 2>/dev/null || true
