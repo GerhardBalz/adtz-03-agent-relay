@@ -13,12 +13,12 @@ Exact user prompts from the original Claude Code sessions, in order. The matchin
 | `15fecd59-8bc0-456a-bf06-dd4e82ff122d` | 2026-09-24T15:05:11Z | `<HOME>` | Prompt 1 (Question 3 task flow request; the user rejected the first tool call and interrupted the turn) | Complete — checked against the original transcript |
 | `0c00767f-c954-4a48-aaeb-ba4472565df0` | 2026-09-24T15:07:28Z | `<HOME>` | Prompts 1–6 (Question 3 acceptance scenario 1 against the container, dashboard token handling, `commit` blocked on transcript access, record update with Dockerfile commit and push) | Complete — checked against the original transcript |
 | `599cc182-e68f-4a78-9493-6047422860bf` | 2026-09-24T15:24:57Z | `<HOME>` | Prompts 1–3 (Question 4 PostgreSQL port and `compose.yaml`; `commit` blocked on transcript access; record update with Question 4 commit and push) | Complete — checked against the original transcript |
-| `b27d3a36-607e-403f-af91-4dc60bfb69f7` | 2026-09-24T15:46:29Z | `<HOME>` | Prompts 1–3 (Question 2 integration test on an isolated Compose stack with dashboard and PostgreSQL check; external-API mode for the test; this README, record update and commit) | Partial — prompts 1–2 complete; prompt 3 was in progress when these files were generated |
+| `b27d3a36-607e-403f-af91-4dc60bfb69f7` | 2026-09-24T15:46:29Z | `<HOME>` | Prompts 1–4 (Question 2 integration test on an isolated Compose stack with dashboard and PostgreSQL check; external-API mode for the test; README, record update and commit; push of commit `98ae2fb`) | Complete — checked against the original transcript |
 
 - Sources: the original local Claude Code session transcripts for the sessions above and the local prompt history. The original files remain outside this repository.
-- Inclusion boundary: each session from its opening `/clear` to its end; the last session only through the start of its prompt 3. The eight sessions are consecutive: each later session begins with the `/clear` that ended the previous one. Nothing was reconstructed from recaps or repository history.
-- Exclusions: all other local sessions were checked when this record was initialized and extended. None mention `agent-relay`. They cover Homework 1 and 2, including the session before the first `/clear` (`98583f95-77f0-484b-8fe9-6d988e3d2f19`, same day, repository remote changes for Homework 1 and 2), so they are outside this record. For this update, the session files in the home-directory project folder were listed again; the only session newer than `599cc182-e68f-4a78-9493-6047422860bf` is `b27d3a36-607e-403f-af91-4dc60bfb69f7`. The separate Homework 2 project folder was not re-read in this update. No record-maintenance-only session exists; the record updates happened inside development sessions and are included.
-- Source gaps: none for the included turns. Session `b27d3a36-607e-403f-af91-4dc60bfb69f7` prompt 3 is partial because it was still running when these files were generated.
+- Inclusion boundary: each session from its opening `/clear` to its end. The eight sessions are consecutive: each later session begins with the `/clear` that ended the previous one. Nothing was reconstructed from recaps or repository history.
+- Exclusions: all other local sessions were checked when this record was initialized and extended. None mention `agent-relay`. They cover Homework 1 and 2, including the session before the first `/clear` (`98583f95-77f0-484b-8fe9-6d988e3d2f19`, same day, repository remote changes for Homework 1 and 2), so they are outside this record. For this update, the session files in the home-directory project folder were listed again; the only session newer than `b27d3a36-607e-403f-af91-4dc60bfb69f7` is `809f5957-0b82-4ca7-8600-ad37432dfe41`, a record-maintenance-only session that finished the `b27d3a36-607e-403f-af91-4dc60bfb69f7` entry from its original transcript and made this record-only commit; it contains no development work and is not included. The separate Homework 2 project folder was not re-read in this update. Earlier record updates happened inside development sessions and are included.
+- Source gaps: none for the included turns.
 
 ## Redactions and omissions
 
@@ -282,8 +282,14 @@ Go to ~/agent-relay and read AGENTS.md. Run the Question 2 API integration test 
 Make the existing API integration test run against the isolated Compose API at http://127.0.0.1:63063, without starting its own server or resetting a database. Run it and confirm that its completed task appears in that stack’s dashboard and PostgreSQL. Report the result.
 ````
 
-### Prompt 3 — 2026-09-24T15:53:50.522Z (PARTIAL — turn in progress when this record was generated)
+### Prompt 3 — 2026-09-24T15:53:50.522Z
 
 ````
 Update the README and dev record, then commit
+````
+
+### Prompt 4 — 2026-09-24T15:57:53.602Z
+
+````
+Run git push origin main for commit 98ae2fb, then run /clear. Keep the isolated stack until you have finished reviewing it. Do not start Question 5.
 ````
