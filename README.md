@@ -97,6 +97,18 @@ recreates all tables on whatever `RELAY_DATABASE_URL` points at, so stop
 the dev server first or set `RELAY_DATABASE_URL` to a scratch file before
 running tests against another database.
 
+`test_api_integration.py` runs acceptance scenario 1 end to end over real
+HTTP. It starts its own uvicorn process on a free local port with
+`RELAY_DATABASE_URL` pointing at a newly created SQLite file in a fresh temp
+directory, refuses to start if that target could be `./agent-relay.db` or any
+inherited database URL, and removes the directory (database, WAL/SHM sidecars
+and server log) afterwards. It does not import the app, so it can run on its
+own while the dev server is up:
+
+```bash
+uv run --frozen pytest test_api_integration.py -q
+```
+
 This starter intentionally does not include Docker, Kubernetes, CI, external
 brokers, an LLM, or a PostgreSQL implementation. Those are deployment and
 student-port concerns rather than part of the local relay protocol.
