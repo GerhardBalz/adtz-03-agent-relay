@@ -154,6 +154,14 @@ docker compose -p agent-relay-q2it down -v
 `ports` (`!override` for the API) and a separate `image` tag so the build does
 not replace `agent-relay:local`.
 
+## Kubernetes
+
+`k8s/` deploys Agent Relay and PostgreSQL to a local kind cluster. The
+database password comes from a Secret that you create locally; it is not in
+the repository. See [k8s/README.md](k8s/README.md) for Secret setup,
+deployment, port forwarding and running the integration test against the
+cluster.
+
 ## Claude Code development record
 
 The Homework 3 Claude Code session record, maintained as described in `AGENTS.md`:
