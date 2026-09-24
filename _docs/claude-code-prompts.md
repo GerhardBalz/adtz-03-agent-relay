@@ -8,12 +8,12 @@ Exact user prompts from the original Claude Code sessions, in order. The matchin
 |---|---|---|---|---|
 | `34b15e8d-9ed7-4d89-af19-9f0705a5aa71` | 2026-09-24T12:06:05Z | `<HOME>` (home directory; the repository was cloned during this session) | Prompts 1–6 (Question 1 setup, dashboard inspection, remote change, record initialization) | Complete — checked against the original transcript |
 | `ea0e72c9-a982-42e5-9ca2-d9e8f575c2fa` | 2026-09-24T12:49:16Z | `<HOME>` | Prompts 1–4 (Question 2 acceptance scenario on a scratch server, manual exchange on the dev server with dashboard check, Bruno desktop app install) | Complete — checked against the original transcript |
-| `7dc934c1-b061-47f3-a389-bc019535660e` | 2026-09-24T14:39:21Z | `<HOME>` | Prompt 1 (Question 2 API integration test and this record update) | Partial — prompt 1 was in progress when these files were generated |
+| `7dc934c1-b061-47f3-a389-bc019535660e` | 2026-09-24T14:39:21Z | `<HOME>` | Prompts 1–3 (Question 2 API integration test with record update and push; `commit` check; this record completion) | Partial — prompts 1–2 complete; prompt 3 was in progress when these files were generated |
 
 - Sources: the original local Claude Code session transcripts for the sessions above and the local prompt history. The original files remain outside this repository.
-- Inclusion boundary: each session from its opening `/clear` to its end; the last session only through the start of its prompt 1. The three sessions are consecutive: each later session begins with the `/clear` that ended the previous one. Nothing was reconstructed from recaps or repository history.
+- Inclusion boundary: each session from its opening `/clear` to its end; the last session only through the start of its prompt 3. The three sessions are consecutive: each later session begins with the `/clear` that ended the previous one. Nothing was reconstructed from recaps or repository history.
 - Exclusions: all other local sessions were checked. None mention `agent-relay`. They cover Homework 1 and 2, including the session before the first `/clear` (`98583f95-77f0-484b-8fe9-6d988e3d2f19`, same day, repository remote changes for Homework 1 and 2), so they are outside this record. No record-maintenance-only session exists; the record updates happened inside development sessions and are included.
-- Source gaps: none for the included turns. Session `7dc934c1-b061-47f3-a389-bc019535660e` prompt 1 is partial because it was still running when these files were generated.
+- Source gaps: none for the included turns. Session `7dc934c1-b061-47f3-a389-bc019535660e` prompt 3 is partial because it was still running when these files were generated.
 
 ## Redactions and omissions
 
@@ -123,7 +123,7 @@ yes, install the desktop app
 /clear
 ````
 
-### Prompt 1 — 2026-09-24T14:39:25.174Z (PARTIAL — turn in progress when this record was generated)
+### Prompt 1 — 2026-09-24T14:39:25.174Z
 
 _Entered as a pasted-text block; the harness `<pasted_content>` wrapper tags are omitted._
 
@@ -141,4 +141,16 @@ Reconcile both `_docs/claude-code-prompts.md` and `_docs/claude-code-conversatio
 Run the new test against its disposable database. Review the full diff and staged content, including uv.lock and both records. If the test passes, source coverage is sound, and staged content is safe to publish, commit and push the Question 2 changes to the existing fork. If any of those conditions fails, stop before commit/push and report the specific blocker without losing local work.
 
 Report: the exact test command; how the server and test database were isolated from the running development server; the test result; files changed; the transcript coverage and any gaps; the inspected uv.lock disposition; commit SHA and push status (or why they did not occur); and the answer to Question 2. Do not start Docker or Question 3, submit homework, or publish a post.
+````
+
+### Prompt 2 — 2026-09-24T14:50:30.357Z
+
+````
+commit
+````
+
+### Prompt 3 — 2026-09-24T14:53:34.554Z (PARTIAL — turn in progress when this record was generated)
+
+````
+yes, update the records and push
 ````
