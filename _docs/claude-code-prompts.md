@@ -12,16 +12,17 @@ Exact user prompts from the original Claude Code sessions, in order. The matchin
 | `9d5412cf-cb54-4793-98ae-8127f65f0531` | 2026-09-24T14:56:29Z | `<HOME>` | Prompt 1 (Question 3 Dockerfile, `agent-relay:local` image build, container run on port 8080) | Complete — checked against the original transcript |
 | `15fecd59-8bc0-456a-bf06-dd4e82ff122d` | 2026-09-24T15:05:11Z | `<HOME>` | Prompt 1 (Question 3 task flow request; the user rejected the first tool call and interrupted the turn) | Complete — checked against the original transcript |
 | `0c00767f-c954-4a48-aaeb-ba4472565df0` | 2026-09-24T15:07:28Z | `<HOME>` | Prompts 1–6 (Question 3 acceptance scenario 1 against the container, dashboard token handling, `commit` blocked on transcript access, record update with Dockerfile commit and push) | Complete — checked against the original transcript |
-| `599cc182-e68f-4a78-9493-6047422860bf` | 2026-09-24T15:24:57Z | `<HOME>` | Prompts 1–3 (Question 4 PostgreSQL port and `compose.yaml`; `commit` blocked on transcript access; this record update) | Partial — prompts 1–2 complete; prompt 3 was in progress when these files were generated |
+| `599cc182-e68f-4a78-9493-6047422860bf` | 2026-09-24T15:24:57Z | `<HOME>` | Prompts 1–3 (Question 4 PostgreSQL port and `compose.yaml`; `commit` blocked on transcript access; record update with Question 4 commit and push) | Complete — checked against the original transcript |
+| `b27d3a36-607e-403f-af91-4dc60bfb69f7` | 2026-09-24T15:46:29Z | `<HOME>` | Prompts 1–3 (Question 2 integration test on an isolated Compose stack with dashboard and PostgreSQL check; external-API mode for the test; this README, record update and commit) | Partial — prompts 1–2 complete; prompt 3 was in progress when these files were generated |
 
 - Sources: the original local Claude Code session transcripts for the sessions above and the local prompt history. The original files remain outside this repository.
-- Inclusion boundary: each session from its opening `/clear` to its end; the last session only through the start of its prompt 3. The seven sessions are consecutive: each later session begins with the `/clear` that ended the previous one. Nothing was reconstructed from recaps or repository history.
-- Exclusions: all other local sessions were checked when this record was initialized and extended. None mention `agent-relay`. They cover Homework 1 and 2, including the session before the first `/clear` (`98583f95-77f0-484b-8fe9-6d988e3d2f19`, same day, repository remote changes for Homework 1 and 2), so they are outside this record. For this update, the session files in the home-directory project folder were listed again; no new session exists besides `599cc182-e68f-4a78-9493-6047422860bf`. The separate Homework 2 project folder was not re-read in this update. No record-maintenance-only session exists; the record updates happened inside development sessions and are included.
-- Source gaps: none for the included turns. Session `599cc182-e68f-4a78-9493-6047422860bf` prompt 3 is partial because it was still running when these files were generated.
+- Inclusion boundary: each session from its opening `/clear` to its end; the last session only through the start of its prompt 3. The eight sessions are consecutive: each later session begins with the `/clear` that ended the previous one. Nothing was reconstructed from recaps or repository history.
+- Exclusions: all other local sessions were checked when this record was initialized and extended. None mention `agent-relay`. They cover Homework 1 and 2, including the session before the first `/clear` (`98583f95-77f0-484b-8fe9-6d988e3d2f19`, same day, repository remote changes for Homework 1 and 2), so they are outside this record. For this update, the session files in the home-directory project folder were listed again; the only session newer than `599cc182-e68f-4a78-9493-6047422860bf` is `b27d3a36-607e-403f-af91-4dc60bfb69f7`. The separate Homework 2 project folder was not re-read in this update. No record-maintenance-only session exists; the record updates happened inside development sessions and are included.
+- Source gaps: none for the included turns. Session `b27d3a36-607e-403f-af91-4dc60bfb69f7` prompt 3 is partial because it was still running when these files were generated.
 
 ## Redactions and omissions
 
-- `<HOME>` replaces the local Windows home-directory path in prompts, replies, commands and output. `<SCRATCHPAD>` and `<TASK_OUTPUT_DIR>` replace local temporary directories. `<USER>` replaces the bare local username (for example in Claude Code project-directory names and file-owner columns). `<EMAIL>` replaces the account email address or its local part, which appears only inside earlier leak-scan search patterns. `<REDACTED_AGENT_TOKEN>` and `<REDACTED_CLAIM_TOKEN>` would replace relay credentials; the included transcripts contain none, because tokens were kept out of output, the dashboard tokens were passed via the clipboard, and the Question 3 sender token was stored only in a git-ignored local credentials file. In session `599cc182-e68f-4a78-9493-6047422860bf` prompt 1, a file listing printed that credentials file into a locally saved tool-output file; the transcript keeps only a preview that does not reach it, and the generator redacts any `agt_`/`clm_` token regardless. Only `<HOME>` changes prompt wording.
+- `<HOME>` replaces the local Windows home-directory path in prompts, replies, commands and output. `<SCRATCHPAD>` and `<TASK_OUTPUT_DIR>` replace local temporary directories. `<USER>` replaces the bare local username (for example in Claude Code project-directory names and file-owner columns). `<EMAIL>` replaces the account email address or its local part, which appears only inside earlier leak-scan search patterns. `<REDACTED_AGENT_TOKEN>` and `<REDACTED_CLAIM_TOKEN>` would replace relay credentials; the included transcripts contain none, because tokens were kept out of output, the dashboard tokens were passed via the clipboard, and the Question 3 sender token was stored only in a git-ignored local credentials file. In session `599cc182-e68f-4a78-9493-6047422860bf` prompt 1, a file listing printed that credentials file into a locally saved tool-output file; the transcript keeps only a preview that does not reach it, and the generator redacts any `agt_`/`clm_` token regardless. In session `b27d3a36-607e-403f-af91-4dc60bfb69f7`, the isolated-stack dashboard tokens were saved to credentials files outside the repository and handed to the browser by a one-request loopback helper, so no token value appears in the transcript. Only `<HOME>` changes prompt wording.
 - Harness `<pasted_content>` wrapper tags around pasted prompts are omitted (marked where they occur).
 
 ## Session `34b15e8d-9ed7-4d89-af19-9f0705a5aa71`
@@ -255,8 +256,34 @@ Start the stack with `docker compose up --build`.
 commit
 ````
 
-### Prompt 3 — 2026-09-24T15:40:56.800Z (PARTIAL — turn in progress when this record was generated)
+### Prompt 3 — 2026-09-24T15:40:56.800Z
 
 ````
 I authorize read-only access to the original local Claude Code session transcripts needed to finish 0c00767f prompt 6 and record session 599cc182. Request interactive permission if auto mode blocks access. Update and verify both development records from those originals, redacting the sender token and any other credentials from all public output. Review the staged changes, then commit and push the Question 4 setup and records together. Report the commit hash and stop before the Compose integration check.
+````
+
+## Session `b27d3a36-607e-403f-af91-4dc60bfb69f7`
+
+### Local command — 2026-09-24T15:46:29.695Z
+
+````
+/clear
+````
+
+### Prompt 1 — 2026-09-24T15:46:32.732Z
+
+````
+Go to ~/agent-relay and read AGENTS.md. Run the Question 2 API integration test against an isolated Compose stack with its own disposable PostgreSQL database and host port. Do not reset the running development database. Check the completed task in that stack’s dashboard and PostgreSQL, then report the results.
+````
+
+### Prompt 2 — 2026-09-24T15:50:52.286Z
+
+````
+Make the existing API integration test run against the isolated Compose API at http://127.0.0.1:63063, without starting its own server or resetting a database. Run it and confirm that its completed task appears in that stack’s dashboard and PostgreSQL. Report the result.
+````
+
+### Prompt 3 — 2026-09-24T15:53:50.522Z (PARTIAL — turn in progress when this record was generated)
+
+````
+Update the README and dev record, then commit
 ````

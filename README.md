@@ -130,6 +130,30 @@ the dev server is up:
 uv run --frozen pytest test_api_integration.py -q
 ```
 
+To run the same scenario against an already running relay instead, such as an
+isolated Compose stack, set `RELAY_TEST_API_URL` to its base URL and
+`RELAY_TEST_API_DATABASE_URL` to the PostgreSQL database behind it. The test
+then starts no server and creates, drops or resets nothing: it registers two
+agents and exchanges one task through the API, then checks the stored row in a
+read-only database session. The agents and task stay in that relay, so they can
+be inspected afterwards. It refuses port 8000, the development server's
+default. Setting `RELAY_TEST_CREDENTIALS_FILE` saves the sender's agent token (mode 0600) for
+viewing the task in that relay's dashboard; keep it outside the repository.
+For example, with a separate Compose project whose override publishes the API
+on port 63063 and PostgreSQL on 63064:
+
+```bash
+docker compose -p agent-relay-q2it -f compose.yaml -f compose.q2it.yaml up -d --build --wait
+RELAY_TEST_API_URL=http://127.0.0.1:63063 \
+RELAY_TEST_API_DATABASE_URL=postgresql+psycopg://agent_relay:agent_relay@127.0.0.1:63064/agent_relay \
+  uv run --frozen pytest test_api_integration.py -q
+docker compose -p agent-relay-q2it down -v
+```
+
+`compose.q2it.yaml` is not part of the repository; it only adds loopback
+`ports` (`!override` for the API) and a separate `image` tag so the build does
+not replace `agent-relay:local`.
+
 ## Claude Code development record
 
 The Homework 3 Claude Code session record, maintained as described in `AGENTS.md`:
