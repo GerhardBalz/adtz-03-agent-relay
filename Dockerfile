@@ -4,8 +4,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
-    PYTHONUNBUFFERED=1 \
-    RELAY_DATABASE_URL=sqlite:////data/agent-relay.db
+    PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
@@ -17,10 +16,9 @@ RUN uv sync --frozen --no-dev --no-install-project
 
 COPY *.py dashboard.html ./
 
-RUN mkdir -p /data
-VOLUME ["/data"]
-
 EXPOSE 8000
+
+# RELAY_DATABASE_URL must point at PostgreSQL; compose.yaml sets it.
 
 # Bind to 0.0.0.0 so the published port is reachable from the host.
 CMD ["/app/.venv/bin/uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

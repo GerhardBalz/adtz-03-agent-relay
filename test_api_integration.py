@@ -1,30 +1,34 @@
 """API integration test for SPEC acceptance scenario 1 (Homework 3 Question 2).
 
 Starts a real uvicorn server in a separate process, backed by a newly created,
-disposable SQLite file, and drives the task exchange over HTTP.  Unlike
+disposable PostgreSQL database, and drives the task exchange over HTTP.  Unlike
 ``test_agent_relay.py`` this module never imports the application, so running
 it cannot create or reset tables in any other database.
 
-Run on its own:
+``RELAY_TEST_DATABASE_URL`` names the PostgreSQL server to use; the test
+connects there only to CREATE and afterwards DROP its own uniquely named
+database.  Run on its own:
 
-    uv run pytest test_api_integration.py -q
+    RELAY_TEST_DATABASE_URL=postgresql+psycopg://... uv run pytest test_api_integration.py -q
 """
 
 from __future__ import annotations
 
 import os
-import shutil
 import signal
 import socket
 import subprocess
 import sys
 import tempfile
 import time
+import uuid
 from collections.abc import Iterator
 from pathlib import Path
 
 import httpx
 import pytest
+from sqlalchemy import create_engine, text
+from sqlalchemy.engine import URL, make_url
 
 REPO_DIR = Path(__file__).resolve().parent
 DEV_SERVER_PORT = 8000
@@ -33,25 +37,33 @@ SHUTDOWN_TIMEOUT_SECONDS = 10
 SECRET_FIELDS = {"token", "claim_token"}
 
 
-def sqlite_path(url: str | None) -> Path | None:
-    """Resolve the file behind a ``sqlite:///`` URL (relative to the repo, like the app)."""
+def admin_url() -> URL:
+    raw = os.environ.get("RELAY_TEST_DATABASE_URL")
+    if not raw:
+        pytest.fail("Set RELAY_TEST_DATABASE_URL to a disposable PostgreSQL server (see README).", pytrace=False)
+    url = make_url(raw)
+    if url.drivername in {"postgresql", "postgres"}:
+        url = url.set(drivername="postgresql+psycopg")
+    return url
 
-    if not url or not url.startswith("sqlite:///") or url.endswith(":memory:"):
-        return None
-    raw = url[len("sqlite:///") :]
-    path = Path(raw)
-    return (path if path.is_absolute() else REPO_DIR / path).resolve()
+
+def run_admin(url: URL, statement: str) -> None:
+    # CREATE/DROP DATABASE cannot run inside a transaction block.
+    engine = create_engine(url, isolation_level="AUTOCOMMIT")
+    try:
+        with engine.connect() as connection:
+            connection.execute(text(statement))
+    finally:
+        engine.dispose()
 
 
-def protected_databases() -> set[Path]:
-    """Databases the test must never touch: the app default and anything inherited."""
-
-    protected = {(REPO_DIR / "agent-relay.db").resolve()}
-    for name in ("RELAY_DATABASE_URL", "DATABASE_URL"):
-        path = sqlite_path(os.environ.get(name))
-        if path is not None:
-            protected.add(path)
-    return protected
+def count_tasks(url: URL) -> int:
+    engine = create_engine(url)
+    try:
+        with engine.connect() as connection:
+            return connection.execute(text("SELECT count(*) FROM tasks")).scalar_one()
+    finally:
+        engine.dispose()
 
 
 def free_port() -> int:
@@ -94,19 +106,6 @@ def stop_server(process: subprocess.Popen) -> None:
         process.wait(timeout=SHUTDOWN_TIMEOUT_SECONDS)
 
 
-def remove_tree(path: Path) -> None:
-    # Windows can hold SQLite/WAL handles briefly after the server exits.
-    for _ in range(20):
-        try:
-            shutil.rmtree(path)
-            return
-        except FileNotFoundError:
-            return
-        except PermissionError:
-            time.sleep(0.25)
-    shutil.rmtree(path)
-
-
 def server_log(log_path: Path) -> str:
     try:
         return log_path.read_text(encoding="utf-8", errors="replace")[-4000:]
@@ -115,23 +114,20 @@ def server_log(log_path: Path) -> str:
 
 
 @pytest.fixture
-def relay_server() -> Iterator[str]:
-    workdir = Path(tempfile.mkdtemp(prefix="agent-relay-it-")).resolve()
-    db_path = workdir / "relay-it.db"
-    log_path = workdir / "server.log"
+def relay_server() -> Iterator[tuple[str, URL]]:
+    admin = admin_url()
+    # A fresh random name: CREATE DATABASE fails rather than reuse anything.
+    db_name = f"relay_it_{uuid.uuid4().hex[:16]}"
+    db_url = admin.set(database=db_name)
+    log_path = Path(tempfile.mkdtemp(prefix="agent-relay-it-")) / "server.log"
     port = free_port()
-
-    # Prove the target is a brand-new, dedicated file before the server starts.
     assert port != DEV_SERVER_PORT
-    assert list(workdir.iterdir()) == []
-    assert db_path not in protected_databases()
-    assert not db_path.is_relative_to(REPO_DIR)
 
+    run_admin(admin, f'CREATE DATABASE "{db_name}"')
     inherited = {"DATABASE_URL", "RELAY_ENROLLMENT_SECRET", "ENROLLMENT_SECRET"}
     env = {key: value for key, value in os.environ.items() if key not in inherited}
-    env["RELAY_DATABASE_URL"] = f"sqlite:///{db_path.as_posix()}"
+    env["RELAY_DATABASE_URL"] = db_url.render_as_string(hide_password=False)
     env["PYTHONUNBUFFERED"] = "1"
-    assert sqlite_path(env["RELAY_DATABASE_URL"]) == db_path
 
     creationflags = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
     log_file = log_path.open("wb")
@@ -157,14 +153,15 @@ def relay_server() -> Iterator[str]:
             if time.monotonic() > deadline:
                 pytest.fail(f"relay server not ready after {STARTUP_TIMEOUT_SECONDS}s:\n{server_log(log_path)}")
             time.sleep(0.2)
-        # The schema now exists in the disposable file, so the server is using it.
-        assert db_path.is_file()
-        yield base_url
+        # The schema now exists in the disposable database, so the server is using it.
+        assert count_tasks(db_url) == 0
+        yield base_url, db_url
     finally:
         stop_server(process)
         log_file.close()
-        # The directory holds only this test's DB, its -wal/-shm sidecars and the log.
-        remove_tree(workdir)
+        log_path.unlink(missing_ok=True)
+        log_path.parent.rmdir()
+        run_admin(admin, f'DROP DATABASE IF EXISTS "{db_name}" WITH (FORCE)')
 
 
 def register(client: httpx.Client, name: str) -> tuple[str, dict[str, str]]:
@@ -175,11 +172,12 @@ def register(client: httpx.Client, name: str) -> tuple[str, dict[str, str]]:
     return data["agent_id"], {"Authorization": f"Bearer {token}"}
 
 
-def test_two_agents_exchange_task_over_real_http_api(relay_server: str) -> None:
+def test_two_agents_exchange_task_over_real_http_api(relay_server: tuple[str, URL]) -> None:
+    base_url, db_url = relay_server
     task_input = "hello from the integration test"
     task_output = "HELLO FROM THE INTEGRATION TEST"
 
-    with httpx.Client(base_url=relay_server, timeout=10) as client:
+    with httpx.Client(base_url=base_url, timeout=10) as client:
         sender_id, sender_headers = register(client, "it-sender")
         recipient_id, recipient_headers = register(client, "it-recipient")
         assert sender_id != recipient_id
@@ -225,3 +223,6 @@ def test_two_agents_exchange_task_over_real_http_api(relay_server: str) -> None:
         assert seen["error"] is None
         assert seen["attempt_count"] == 1
         assert seen["finished_at"] is not None
+
+    # The task is persisted in the server's PostgreSQL database.
+    assert count_tasks(db_url) == 1
